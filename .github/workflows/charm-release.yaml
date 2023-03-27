@@ -1,0 +1,24 @@
+name: Release Charm
+
+on:
+  workflow_call:
+    inputs:
+      artifact:
+        description: "Name of artifact to download before building. Must contain the file artifact.tar.gz."
+        default: ''
+        required: false
+        type: string
+    secrets:
+      CHARMHUB_TOKEN:
+        required: true
+
+concurrency:
+  group: release
+  cancel-in-progress: true
+
+jobs:
+  release-charm:
+    uses: ./.github/workflows/_charm-release.yaml
+    secrets: inherit
+    with:
+      artifact: "${{ inputs.artifact }}"

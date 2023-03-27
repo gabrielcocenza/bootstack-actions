@@ -14,9 +14,15 @@ on:
       channel:
         description: |
           The channel to which charm should be released. Edge channel is default.
-        default: edge
+        default: latest/edge
         required: false
         type: string
+      upload-image:
+        description: |
+          Set to true if you want to update the OCI image
+        required: false
+        default: false
+        type: boolean
     secrets:
       CHARMHUB_TOKEN:
         required: true
@@ -26,7 +32,8 @@ jobs:
     name: Release to CharmHub
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v3
         with:
           submodules: true
       - name: Download Artifact
@@ -44,3 +51,4 @@ jobs:
           credentials: "${{ secrets.CHARMHUB_TOKEN }}"
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           channel: "${{ inputs.channel }}"
+          upload-image: "${{ inputs.upload-image }}"
