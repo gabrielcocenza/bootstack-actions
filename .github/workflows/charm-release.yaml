@@ -1,8 +1,22 @@
-name: Pull Request
+name: Release Charm
 
 on:
   workflow_call:
     inputs:
+      artifact:
+        description: "Name of artifact to download before building. Must contain the file artifact.tar.gz."
+        required: false
+        type: string
+      channel:
+        description: |
+          The channel to which charm should be released. Edge channel is default.
+        required: false
+        type: string
+      upload-image:
+        description: |
+          Set to true if you want to update the OCI image
+        required: false
+        type: boolean
       python-version-unit:
         required: true
         description: "Python version"
@@ -23,11 +37,6 @@ on:
         description: "To change working directory"
         type: string
         default: "."
-      snapcraft:
-        required: false
-        description: "Flag if snap is tested."
-        type: boolean
-        default: false
       commands:
         required: false
         description: |
@@ -50,17 +59,14 @@ on:
         type: boolean
         default: false
 
+concurrency:
+  group: release
+  cancel-in-progress: true
+
 jobs:
   lint-unit:
     name: Lint checkers and unit tests
     uses: ./.github/workflows/_lint-unit.yaml
-    # Note(rgildein): Lint checkers and unit tests should be triggered on any push, any
-    # pull requested, approval pull request review was submitted or review comment with
-    # recheck
-    if: |
-      github.event_name == 'pull_request' ||
-      github.event.review.state == 'approved' ||
-      github.event.review.body == 'recheck'
     secrets: inherit
     with:
       python-version: ${{ inputs.python-version-unit }}
@@ -69,20 +75,23 @@ jobs:
 
   func:
     uses: ./.github/workflows/_func.yaml
-    needs: 
+    needs:
     - lint-unit
-    # Note(rgildein): Functional tests should be triggered only for commits to
-    # master/main branch, if PR was approved or review comment with recheck
-    if: |
-      contains(fromJson('["main", "master"]'), github.event.ref_name) ||
-      github.event.review.state == 'approved' ||
-      github.event.review.body == 'recheck'
     secrets: inherit
     with:
       python-version: ${{ inputs.python-version-func }}
       tox-version: ${{ inputs.tox-version }}
       working-directory: ${{ inputs.working-directory }}
-      snapcraft: ${{ inputs.snapcraft }}
       commands: ${{ inputs.commands }}
       provider: ${{ inputs.provider }}
       nested-containers: ${{ inputs.nested-containers }}
+
+  release-charm:
+    needs:
+      - func
+    uses: ./.github/workflows/_charm-release.yaml
+    secrets: inherit
+    with:
+      artifact: "${{ inputs.artifact }}"
+      channel: "${{ inputs.channel }}"
+      upload-image: "${{ inputs.upload-image }}"
