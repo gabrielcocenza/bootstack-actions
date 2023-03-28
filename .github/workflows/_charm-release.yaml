@@ -8,20 +8,17 @@ on:
           Name of artifact to download before building. This artifact can be used to
           store resources or any other files needed for testing. The file needs to be
           packed as tar.gz file.
-        default: ''
         required: false
         type: string
       channel:
         description: |
           The channel to which charm should be released. Edge channel is default.
-        default: latest/edge
         required: false
         type: string
       upload-image:
         description: |
           Set to true if you want to update the OCI image
         required: false
-        default: false
         type: boolean
     secrets:
       CHARMHUB_TOKEN:

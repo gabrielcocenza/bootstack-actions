@@ -8,17 +8,93 @@ on:
         default: ''
         required: false
         type: string
-    secrets:
-      CHARMHUB_TOKEN:
+      channel:
+        description: |
+          The channel to which charm should be released. Edge channel is default.
+        default: latest/edge
+        required: false
+        type: string
+      upload-image:
+        description: |
+          Set to true if you want to update the OCI image
+        default: false
+        required: false
+        type: boolean
+      python-version-unit:
         required: true
+        description: "Python version"
+        type: string
+        default: "['3.8', '3.10']"
+      python-version-func:
+        required: true
+        description: "Python version"
+        type: string
+        default: "3.10"
+      tox-version:
+        required: false
+        description: "Tox version, which should be used, e.g. `<4`"
+        type: string
+        default: ""
+      working-directory:
+        required: false
+        description: "To change working directory"
+        type: string
+        default: "."
+      commands:
+        required: false
+        description: |
+          Command to run functional test in strategies. It defaults to
+          `make functional`, but is defined as a list, so `['make functional']`.
+          This allows you to run multiple tests with different parameters.
+          Examples:
+          - ['FUNC_ARGS="--series jammy" make functional',
+             'FUNC_ARGS="--series focal" make functional']
+          - ['tox -e func -- -sv --series jammy', 'tox -e func -- -sv --series focal']
+        type: string
+        default: "['make functional']"
+      # actions-operator
+      provider:
+        required: false
+        type: string
+        default: "lxd"
+      nested-containers:
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: release
   cancel-in-progress: true
 
 jobs:
+  lint-unit:
+    name: Lint checkers and unit tests
+    uses: ./.github/workflows/_lint-unit.yaml
+    secrets: inherit
+    with:
+      python-version: ${{ inputs.python-version-unit }}
+      tox-version: ${{ inputs.tox-version }}
+      working-directory: ${{ inputs.working-directory }}
+
+  func:
+    uses: ./.github/workflows/_func.yaml
+    needs:
+    - lint-unit
+    secrets: inherit
+    with:
+      python-version: ${{ inputs.python-version-func }}
+      tox-version: ${{ inputs.tox-version }}
+      working-directory: ${{ inputs.working-directory }}
+      commands: ${{ inputs.commands }}
+      provider: ${{ inputs.provider }}
+      nested-containers: ${{ inputs.nested-containers }}
+
   release-charm:
+    needs:
+      - func
     uses: ./.github/workflows/_charm-release.yaml
     secrets: inherit
     with:
       artifact: "${{ inputs.artifact }}"
+      channel: "${{ inputs.channel }}"
+      upload-image: "${{ inputs.upload-image }}"
